@@ -1,3 +1,76 @@
+# Codex with Architect — 实验性 Fork
+
+> **当前状态：** Phase 1 开发分支。Kimi K3 负责方案设计与 Review，Codex 负责执行。
+
+本仓库基于 [XiaoDuoYa/codex-with-chatgpt](https://github.com/XiaoDuoYa/codex-with-chatgpt) fork 并继续演进。
+
+原项目提出了一个很有价值的核心思想：**把“思考/Review”和“本地执行”分开**。原实现使用 ChatGPT Web 作为规划与 Review 层，通过只读 MCP Bridge 访问本地仓库，由 Codex 负责真正修改代码、运行命令和测试。
+
+这个 fork 保留这一核心设计，同时尝试一条更通用的路线：
+
+> **Architect 负责推理，Codex 负责执行。**
+
+Phase 1 不再依赖 Codex 自动操作 ChatGPT 网页，而是直接使用 **Kimi K3 API** 作为只读 Architect / Reviewer。Kimi 不拥有文件写入、Shell 或 Git 修改权限。
+
+非常感谢原作者提供的架构思路、安全边界、MCP/workspace 实现、执行记录机制和协议基础。本仓库继续保留原 MIT License 和原项目署名。
+
+## Phase 1
+
+```text
+用户任务
+   ↓
+Kimi K3 Architect
+   ↓ 只读查看 repo/search/file/git/test record
+结构化 PLAN
+   ↓
+Codex Executor
+   ↓ 修改 / 命令 / 测试 / Git
+Kimi K3 Reviewer
+   ↓
+APPROVED
+或
+CHANGES_REQUIRED → Codex 修复 → 再 Review
+```
+
+配置 Kimi Code API：
+
+```bash
+export KIMI_API_KEY="your-key"
+
+# 可选
+export KIMI_BASE_URL="https://api.kimi.ai/coding/v1"
+export KIMI_MODEL="k3-256k"
+export KIMI_REASONING_EFFORT="high"
+```
+
+国内 Kimi Code API 可将 Base URL 改为：
+
+```bash
+export KIMI_BASE_URL="https://api.kimi.com/coding/v1"
+```
+
+生成 PLAN：
+
+```bash
+c2c architect plan -w /path/to/project --goal "开发目标" --json
+```
+
+Codex 完成开发并使用现有 `c2c record` 记录测试/执行结果后，进行 Review：
+
+```bash
+c2c architect review -w /path/to/project --task <taskId> --json
+```
+
+Phase 1 暂时不引入 Jev，也不做多模型路由。完整路线见 [docs/SECONDARY_DEVELOPMENT_PLAN.md](docs/SECONDARY_DEVELOPMENT_PLAN.md)。
+
+项目仓库暂时仍保留 **codex-with-chatgpt** 这个名称，以便先验证架构。长期如果方向验证成功，更准确的名称会是 **codex-with-architect**。
+
+---
+
+## 原项目文档
+
+以下内容保留自上游项目，作为原始使用说明和历史参考。
+
 # Codex with ChatGPT
 
 [English](README.md) | **简体中文**
