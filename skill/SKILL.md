@@ -1,11 +1,11 @@
 ---
-name: codex-with-architect
-description: Use a read-only Kimi K3 Architect/Reviewer to plan and review coding work while Codex remains the sole executor.
+name: agent-mesh
+description: Orchestrate a read-only Kimi K3 Architect/Reviewer with Codex as the Phase 1 Executor.
 ---
 
-# Codex with Architect — Phase 1
+# Agent Mesh — Phase 1
 
-This fork evolves the original Codex-with-ChatGPT idea into a simpler API-based architecture.
+Agent Mesh evolves the original Codex-with-ChatGPT idea into a model-agnostic multi-agent orchestration architecture.
 
 ## Responsibilities
 
@@ -49,7 +49,7 @@ When the user asks to use this project for a coding task:
 1. Ask Architect for a PLAN:
 
 ```bash
-c2c architect plan -w <workspace> --goal "<user goal>" --json
+amesh architect plan -w <workspace> --goal "<user goal>" --json
 ```
 
 2. Read the returned `plan.taskId` and structured PLAN.
@@ -61,7 +61,7 @@ c2c architect plan -w <workspace> --goal "<user goal>" --json
 5. Record execution metadata so Architect can inspect it:
 
 ```bash
-c2c record -w <workspace> \
+amesh record -w <workspace> \
   --task <taskId> \
   --iteration <n> \
   --changed-files "file1,file2" \
@@ -74,7 +74,7 @@ When command output is useful for review, use the existing `--command` and `--ou
 6. Ask Architect to review:
 
 ```bash
-c2c architect review -w <workspace> --task <taskId> --json
+amesh architect review -w <workspace> --task <taskId> --json
 ```
 
 7. If `decision=CHANGES_REQUIRED`, fix the issues, rerun tests, record the next iteration, and review again.
@@ -98,3 +98,8 @@ The original browser + ChatGPT/MCP skill is preserved at:
 `skill/SKILL.legacy-chatgpt.md`
 
 It is retained for reference and attribution, but is not the Phase 1 default workflow.
+
+
+## CLI compatibility
+
+During Phase 1, `c2c` remains a compatibility alias for `amesh`. New documentation should prefer `amesh`.
