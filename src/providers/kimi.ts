@@ -81,7 +81,8 @@ export class KimiArchitectProvider implements ArchitectProvider {
     ];
     const toolMap = new Map(input.tools.map((tool) => [tool.name, tool]));
     let toolCalls = 0;
-    let lastUsage: ProviderUsage | undefined;
+    const totalUsage: ProviderUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    let sawUsage = false;
 
     for (;;) {
       const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
@@ -111,7 +112,13 @@ export class KimiArchitectProvider implements ArchitectProvider {
       if (!response.ok) {
         throw new Error(raw.error?.message ?? `Kimi API request failed with HTTP ${response.status}`);
       }
-      lastUsage = toUsage(raw.usage) ?? lastUsage;
+      const usage = toUsage(raw.usage);
+      if (usage) {
+        sawUsage = true;
+        totalUsage.promptTokens = (totalUsage.promptTokens ?? 0) + (usage.promptTokens ?? 0);
+        totalUsage.completionTokens = (totalUsage.completionTokens ?? 0) + (usage.completionTokens ?? 0);
+        totalUsage.totalTokens = (totalUsage.totalTokens ?? 0) + (usage.totalTokens ?? 0);
+      }
       const message = raw.choices?.[0]?.message;
       if (!message) throw new Error("Kimi API returned no assistant message");
       messages.push(message);
@@ -120,7 +127,7 @@ export class KimiArchitectProvider implements ArchitectProvider {
       if (calls.length === 0) {
         const content = typeof message.content === "string" ? message.content : "";
         if (!content.trim()) throw new Error("Kimi API returned an empty final response");
-        return { content, usage: lastUsage, toolCalls };
+        return { content, usage: sawUsage ? totalUsage : undefined, toolCalls };
       }
 
       for (const call of calls) {
