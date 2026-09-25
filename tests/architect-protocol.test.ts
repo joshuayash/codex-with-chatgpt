@@ -18,7 +18,7 @@ describe("architect protocol", () => {
   });
 
   it("parses fenced json defensively", () => {
-    expect(parseJsonObject('\\`\\`\\`json\n{"type":"x"}\n\\`\\`\\`')).toEqual({ type: "x" });
+    expect(parseJsonObject('```json\n{"type":"x"}\n```')).toEqual({ type: "x" });
   });
 
   it("rejects an invalid review decision", () => {
