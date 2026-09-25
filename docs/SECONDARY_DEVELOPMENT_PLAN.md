@@ -1,18 +1,18 @@
-# Secondary Development Plan
+# Agent Mesh Development Plan
 
 ## Status
 
 - Upstream: `XiaoDuoYa/codex-with-chatgpt`
-- Fork: `joshuayash/codex-with-chatgpt`
+- Product: **Agent Mesh** (`agent-mesh`)\n- Current GitHub fork: `joshuayash/codex-with-chatgpt` (repository rename deferred until migration is finalized)
 - Current phase: **design only**
 - Functional development has not started yet.
 
 ## Overall Goal
 
-Evolve the project from a "Codex + ChatGPT Web" collaboration model into a more general architecture where:
+Evolve the project from a "Codex + ChatGPT Web" collaboration model into **Agent Mesh**, a general multi-agent software-engineering orchestration layer where:
 
 - an external model acts as **Architect / Reviewer**
-- Codex acts as the **Executor**
+- an execution agent acts as the **Executor**; Codex is the Phase 1 implementation
 - repository access remains **read-only for Architect**
 - model choice can later evolve into a routed, multi-model system
 
@@ -24,11 +24,11 @@ The implementation should start simple and add routing only after the Architect/
 
 1. Keep Architect and Executor responsibilities separated.
 2. Architect remains read-only by default.
-3. Codex remains the only component allowed to modify code, execute shell commands, run tests, and perform Git mutations.
+3. The active Executor is the only role allowed to modify code, execute shell commands, run tests, and perform Git mutations. In Phase 1, the Executor is Codex.
 4. Prefer official model APIs over automated interaction with ChatGPT Web.
 5. Fetch repository context on demand instead of pushing the whole repository into prompts.
 6. Use machine-readable PLAN and REVIEW protocols between Architect and Codex.
-7. Keep the provider abstraction model-agnostic even when Phase 1 initially uses only Kimi K3.
+7. Keep both model and execution roles replaceable even when Phase 1 initially uses Kimi K3 + Codex.
 8. Add routing, Jev, and multiple providers only after the minimal closed loop is stable.
 
 ---
@@ -732,3 +732,24 @@ Current objective remains:
 2. review the existing project architecture
 3. define the exact Phase 1 implementation tasks
 4. only then begin coding
+
+
+---
+
+# Product Naming Decision
+
+The project name is **Agent Mesh** and the package name is **`agent-mesh`**.
+
+The name deliberately avoids binding the project to:
+
+- ChatGPT
+- Kimi
+- Codex
+- any single Architect
+- any single Executor
+
+The preferred CLI is `amesh`. The legacy `c2c` command remains as a Phase 1 compatibility alias.
+
+Long-term product description:
+
+> Agent Mesh orchestrates reasoning, execution, review, and routing across replaceable software-engineering agents.
