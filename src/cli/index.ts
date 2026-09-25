@@ -55,7 +55,8 @@ import {
   type WaitingFor,
 } from "../session/state.js";
 import { appendExecutionRecord } from "../execution/records.js";
-import { saveExecutionOutput } from "../execution/output.js";\nimport { registerArchitectCommands } from "./architect.js";
+import { saveExecutionOutput } from "../execution/output.js";
+import { registerArchitectCommands } from "./architect.js";
 
 const program = new Command();
 
@@ -215,7 +216,9 @@ program
   .name("c2c")
   .description(`${PRODUCT_NAME} — ChatGPT thinks. Codex works.`)
   .version(VERSION, "-v, --version")
-  .configureHelp({ sortSubcommands: true });\n\nregisterArchitectCommands(program);
+  .configureHelp({ sortSubcommands: true });
+
+registerArchitectCommands(program);
 
 /** Machine-wide commands ignore `-w` so a Skill that always passes it cannot crash them. */
 function acceptUnusedWorkspaceOption(command: Command): Command {
