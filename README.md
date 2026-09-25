@@ -1,3 +1,162 @@
+# Codex with Architect — experimental fork
+
+> **Status:** Phase 1 development branch. Kimi K3 plans and reviews; Codex executes.
+
+This repository is a respectful fork of [XiaoDuoYa/codex-with-chatgpt](https://github.com/XiaoDuoYa/codex-with-chatgpt).
+
+The original project introduced a valuable separation of responsibilities: **ChatGPT thinks, Codex works**. It used ChatGPT Web as the planning/review layer, a read-only MCP bridge for repository access, and Codex as the local executor.
+
+This fork keeps that core insight while exploring a different implementation:
+
+> **Architect reasons. Codex executes.**
+
+Phase 1 replaces ChatGPT Web browser automation with a direct, read-only **Kimi K3 Architect / Reviewer**. Codex remains the only component that edits files, executes commands, runs tests, and mutates Git.
+
+We are grateful to the original author and project for the architecture, security boundaries, MCP/workspace implementation, execution recording, protocol ideas, and the foundation this experiment builds on. The original MIT license and attribution are preserved.
+
+## Why this fork exists
+
+The long-term goal is not to bind Codex to one model. It is to build a clean Architect/Executor boundary that can later support:
+
+- multiple Architect providers;
+- stronger-model escalation for difficult tasks;
+- Jev-based routing and review decisions;
+- cost/quality-aware model selection;
+- repository-specific benchmarks based on real development work.
+
+Phase 1 intentionally avoids all of that complexity. First we want to prove that a single external Architect can reliably plan and review while Codex remains the executor.
+
+## Phase 1 architecture
+
+```text
+User task
+   |
+   v
+Kimi K3 Architect
+   |  read-only
+   +--> repo tree / search / files / git status / diff / test records
+   |
+   v
+Structured PLAN
+   |
+   v
+Codex Executor
+   +--> edit
+   +--> shell
+   +--> tests
+   +--> git
+   |
+   v
+Kimi K3 Reviewer
+   |
+   +--> APPROVED
+   |
+   +--> CHANGES_REQUIRED --> Codex fixes --> review again
+```
+
+Kimi is never given write, shell, or Git mutation tools.
+
+## Quick start for Phase 1
+
+Requirements:
+
+- Node.js 20+
+- the existing project dependencies
+- a Kimi Code API key that matches the configured regional endpoint
+
+Set credentials:
+
+```bash
+export KIMI_API_KEY="your-key"
+```
+
+Optional configuration:
+
+```bash
+# International Kimi Code endpoint (default)
+export KIMI_BASE_URL="https://api.kimi.ai/coding/v1"
+
+# China endpoint:
+# export KIMI_BASE_URL="https://api.kimi.com/coding/v1"
+
+export KIMI_MODEL="k3-256k"
+export KIMI_REASONING_EFFORT="high"
+```
+
+Do not commit API keys to the repository.
+
+Ask Architect for a plan:
+
+```bash
+c2c architect plan \
+  -w /path/to/project \
+  --goal "Implement the requested feature" \
+  --json
+```
+
+Codex then implements the returned PLAN, runs appropriate checks, and records execution as before:
+
+```bash
+c2c record \
+  -w /path/to/project \
+  --task <taskId> \
+  --iteration 1 \
+  --changed-files "src/a.ts,src/b.ts" \
+  --tests "tests passed" \
+  --exit-status ok
+```
+
+Ask Architect to review:
+
+```bash
+c2c architect review \
+  -w /path/to/project \
+  --task <taskId> \
+  --json
+```
+
+Review decisions are deliberately limited to:
+
+- `APPROVED`
+- `CHANGES_REQUIRED`
+
+The Codex Skill limits review/fix loops to three iterations in Phase 1.
+
+## Phase 1 implementation pieces
+
+- `src/providers/kimi.ts` — Kimi OpenAI-compatible provider
+- `src/providers/provider.ts` — model-neutral provider contract
+- `src/architect/tools.ts` — read-only repository tools
+- `src/architect/protocol.ts` — structured PLAN / REVIEW schemas
+- `src/architect/orchestrator.ts` — planning/review orchestration
+- `src/architect/history.ts` — local task/run records
+- `src/cli/architect.ts` — `c2c architect plan|review`
+- `skill/SKILL.md` — Phase 1 Codex workflow
+- `skill/SKILL.legacy-chatgpt.md` — preserved upstream browser workflow
+
+Architect run metadata is stored in the existing C2C state directory, outside the target repository by default, so normal project source trees are not polluted with agent run files.
+
+## Roadmap
+
+- **Phase 1:** Kimi K3 Architect/Reviewer + Codex Executor
+- **Phase 2:** add one stronger fallback model with manual/rule-based escalation
+- **Phase 3:** add Jev Router/Judge and automatic multi-model routing
+- **Phase 4:** optimize model choice and review depth using task history, quality, risk, and cost
+
+See [docs/SECONDARY_DEVELOPMENT_PLAN.md](docs/SECONDARY_DEVELOPMENT_PLAN.md).
+
+## Naming
+
+The repository is intentionally still named **codex-with-chatgpt** during Phase 1 so the architectural change can be validated before adding a branding/package migration.
+
+A likely future name is **codex-with-architect**, because the long-term design is model-agnostic rather than tied to ChatGPT or Kimi.
+
+---
+
+## Original project documentation
+
+The documentation below is retained from the upstream project for historical context and attribution.
+
 # Codex with ChatGPT
 
 > ChatGPT thinks. Codex works.
