@@ -1,32 +1,53 @@
-# Codex with Architect — experimental fork
+# Agent Mesh
 
-> **Status:** Phase 1 development branch. Kimi K3 plans and reviews; Codex executes.
+> **Status:** Phase 1 development. Kimi K3 plans and reviews; Codex is the first Executor implementation.
+
+**Agent Mesh** is a multi-agent orchestration layer for software engineering.
+
+The long-term design does not bind the system to one reasoning model or one execution agent. Different agents can specialize as Architect, Executor, Reviewer, Verifier, or Router, while Agent Mesh coordinates the workflow and keeps explicit security boundaries between them.
 
 This repository is a respectful fork of [XiaoDuoYa/codex-with-chatgpt](https://github.com/XiaoDuoYa/codex-with-chatgpt).
 
-The original project introduced a valuable separation of responsibilities: **ChatGPT thinks, Codex works**. It used ChatGPT Web as the planning/review layer, a read-only MCP bridge for repository access, and Codex as the local executor.
+The upstream project introduced the core idea that inspired Agent Mesh: separate the planning/review brain from the local coding executor. It also provided the read-only workspace/MCP boundary, execution records, protocol concepts, and much of the foundation used here. We are grateful to the original author and preserve the original MIT license and attribution.
 
-This fork keeps that core insight while exploring a different implementation:
+## Design intent
 
-> **Architect reasons. Codex executes.**
+Agent Mesh is built around three ideas:
 
-Phase 1 replaces ChatGPT Web browser automation with a direct, read-only **Kimi K3 Architect / Reviewer**. Codex remains the only component that edits files, executes commands, runs tests, and mutates Git.
+- **roles are replaceable** — Architect, Executor, Reviewer, and Router are interfaces, not product names;
+- **permissions are explicit** — reasoning/review agents are read-only unless a future policy deliberately grants more;
+- **orchestration is measurable** — plans, execution results, reviews, token use, cost, and outcomes should be recorded so routing can improve over time.
 
-We are grateful to the original author and project for the architecture, security boundaries, MCP/workspace implementation, execution recording, protocol ideas, and the foundation this experiment builds on. The original MIT license and attribution are preserved.
+A future Agent Mesh may look like:
 
-## Why this fork exists
+```text
+                    User
+                     |
+                     v
+                   Router
+                     |
+          +----------+----------+
+          |                     |
+          v                     v
+      Architect A          Architect B
+          |                     |
+          +----------+----------+
+                     |
+                     v
+                  Executor
+                     |
+                     v
+                  Reviewer
+                     |
+                     v
+                  Verifier
+```
 
-The long-term goal is not to bind Codex to one model. It is to build a clean Architect/Executor boundary that can later support:
+None of those roles has to be permanently tied to Kimi, Codex, Claude, GPT, Gemini, or any other product.
 
-- multiple Architect providers;
-- stronger-model escalation for difficult tasks;
-- Jev-based routing and review decisions;
-- cost/quality-aware model selection;
-- repository-specific benchmarks based on real development work.
+## Phase 1
 
-Phase 1 intentionally avoids all of that complexity. First we want to prove that a single external Architect can reliably plan and review while Codex remains the executor.
-
-## Phase 1 architecture
+Phase 1 intentionally stays simple:
 
 ```text
 User task
@@ -34,17 +55,14 @@ User task
    v
 Kimi K3 Architect
    |  read-only
-   +--> repo tree / search / files / git status / diff / test records
+   +--> repo tree / search / files / git status / diff / execution records
    |
    v
 Structured PLAN
    |
    v
 Codex Executor
-   +--> edit
-   +--> shell
-   +--> tests
-   +--> git
+   +--> edit / shell / tests / git
    |
    v
 Kimi K3 Reviewer
@@ -56,13 +74,15 @@ Kimi K3 Reviewer
 
 Kimi is never given write, shell, or Git mutation tools.
 
-## Quick start for Phase 1
+Phase 1 does **not** include Jev or multi-model routing. The point is to validate the Architect/Executor/Reviewer separation before adding routing complexity.
+
+## Quick start
 
 Requirements:
 
 - Node.js 20+
-- the existing project dependencies
-- a Kimi Code API key that matches the configured regional endpoint
+- project dependencies installed
+- a Kimi Code API key matching the configured regional endpoint
 
 Set credentials:
 
@@ -70,12 +90,10 @@ Set credentials:
 export KIMI_API_KEY="your-key"
 ```
 
-Optional configuration:
+Optional:
 
 ```bash
-# International Kimi Code endpoint (default)
 export KIMI_BASE_URL="https://api.kimi.ai/coding/v1"
-
 # China endpoint:
 # export KIMI_BASE_URL="https://api.kimi.com/coding/v1"
 
@@ -83,21 +101,27 @@ export KIMI_MODEL="k3-256k"
 export KIMI_REASONING_EFFORT="high"
 ```
 
-Do not commit API keys to the repository.
+Do not commit API keys.
 
-Ask Architect for a plan:
+Ask the Architect for a plan:
 
 ```bash
-c2c architect plan \
+amesh architect plan \
   -w /path/to/project \
   --goal "Implement the requested feature" \
   --json
 ```
 
-Codex then implements the returned PLAN, runs appropriate checks, and records execution as before:
+The legacy `c2c` command remains available as a compatibility alias during the migration:
 
 ```bash
-c2c record \
+c2c architect plan ...
+```
+
+After the Executor implements the plan and runs tests, record the execution:
+
+```bash
+amesh record \
   -w /path/to/project \
   --task <taskId> \
   --iteration 1 \
@@ -106,50 +130,52 @@ c2c record \
   --exit-status ok
 ```
 
-Ask Architect to review:
+Then review:
 
 ```bash
-c2c architect review \
+amesh architect review \
   -w /path/to/project \
   --task <taskId> \
   --json
 ```
 
-Review decisions are deliberately limited to:
+Review decisions are currently limited to:
 
 - `APPROVED`
 - `CHANGES_REQUIRED`
 
-The Codex Skill limits review/fix loops to three iterations in Phase 1.
+## Phase 1 implementation
 
-## Phase 1 implementation pieces
-
-- `src/providers/kimi.ts` — Kimi OpenAI-compatible provider
 - `src/providers/provider.ts` — model-neutral provider contract
+- `src/providers/kimi.ts` — Kimi K3 provider
 - `src/architect/tools.ts` — read-only repository tools
 - `src/architect/protocol.ts` — structured PLAN / REVIEW schemas
 - `src/architect/orchestrator.ts` — planning/review orchestration
-- `src/architect/history.ts` — local task/run records
-- `src/cli/architect.ts` — `c2c architect plan|review`
-- `skill/SKILL.md` — Phase 1 Codex workflow
+- `src/architect/history.ts` — local run records
+- `src/cli/architect.ts` — Architect CLI
+- `skill/SKILL.md` — Phase 1 workflow
 - `skill/SKILL.legacy-chatgpt.md` — preserved upstream browser workflow
-
-Architect run metadata is stored in the existing C2C state directory, outside the target repository by default, so normal project source trees are not polluted with agent run files.
 
 ## Roadmap
 
 - **Phase 1:** Kimi K3 Architect/Reviewer + Codex Executor
-- **Phase 2:** add one stronger fallback model with manual/rule-based escalation
-- **Phase 3:** add Jev Router/Judge and automatic multi-model routing
-- **Phase 4:** optimize model choice and review depth using task history, quality, risk, and cost
+- **Phase 2:** add one stronger fallback Architect/Reviewer with manual or rule-based escalation
+- **Phase 3:** introduce Jev Router/Judge and automatic multi-model routing
+- **Phase 4:** optimize routing and review depth from quality, risk, latency, and cost data
+- **Later:** support multiple Executor implementations, so Codex is only one execution backend
 
 See [docs/SECONDARY_DEVELOPMENT_PLAN.md](docs/SECONDARY_DEVELOPMENT_PLAN.md).
 
-## Naming
+## Naming and compatibility
 
-The repository is intentionally still named **codex-with-chatgpt** during Phase 1 so the architectural change can be validated before adding a branding/package migration.
+The product and package name are now **Agent Mesh / `agent-mesh`**.
 
-A likely future name is **codex-with-architect**, because the long-term design is model-agnostic rather than tied to ChatGPT or Kimi.
+During Phase 1:
+
+- preferred CLI: `amesh`
+- compatibility CLI: `c2c`
+- existing state directories are intentionally kept compatible for now
+- the GitHub repository may still retain its old fork name until the migration is finalized
 
 ---
 
