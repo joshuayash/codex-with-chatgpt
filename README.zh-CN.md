@@ -1,26 +1,50 @@
-# Codex with Architect — 实验性 Fork
+# Agent Mesh
 
-> **当前状态：** Phase 1 开发分支。Kimi K3 负责方案设计与 Review，Codex 负责执行。
+> **当前状态：** Phase 1 开发中。Kimi K3 负责 Architect / Reviewer，Codex 是第一版 Executor 实现。
 
-本仓库基于 [XiaoDuoYa/codex-with-chatgpt](https://github.com/XiaoDuoYa/codex-with-chatgpt) fork 并继续演进。
+**Agent Mesh** 是面向软件工程的多 Agent 编排层。
 
-原项目提出了一个很有价值的核心思想：**把“思考/Review”和“本地执行”分开**。原实现使用 ChatGPT Web 作为规划与 Review 层，通过只读 MCP Bridge 访问本地仓库，由 Codex 负责真正修改代码、运行命令和测试。
+长期目标不是把系统绑定到某一个推理模型，也不是绑定到某一个编码 Agent。Architect、Executor、Reviewer、Verifier、Router 都应该是可替换角色，由 Agent Mesh 负责协议、权限边界和工作流编排。
 
-这个 fork 保留这一核心设计，同时尝试一条更通用的路线：
+本项目基于 [XiaoDuoYa/codex-with-chatgpt](https://github.com/XiaoDuoYa/codex-with-chatgpt) fork 并继续演进。
 
-> **Architect 负责推理，Codex 负责执行。**
+原项目提出并实现了非常重要的核心思路：把规划/Review 与本地执行分开，并提供只读 workspace/MCP、安全边界、execution record 和协作协议等基础。Agent Mesh 在此基础上继续发展，并保留原 MIT License 和原项目署名。感谢原作者的工作。
 
-Phase 1 不再依赖 Codex 自动操作 ChatGPT 网页，而是直接使用 **Kimi K3 API** 作为只读 Architect / Reviewer。Kimi 不拥有文件写入、Shell 或 Git 修改权限。
+## 设计意图
 
-非常感谢原作者提供的架构思路、安全边界、MCP/workspace 实现、执行记录机制和协议基础。本仓库继续保留原 MIT License 和原项目署名。
+Agent Mesh 的核心原则：
+
+- **角色可替换**：Architect、Executor、Reviewer、Router 是接口，而不是具体产品名；
+- **权限明确**：推理和 Review Agent 默认只读，执行权限集中在 Executor；
+- **过程可观测**：记录 PLAN、执行结果、Review、token、成本和最终结果，为后续自动路由提供数据。
+
+长期架构可能演进成：
+
+```text
+用户
+ ↓
+Router
+ ↓
+Architect
+ ↓
+Executor
+ ↓
+Reviewer
+ ↓
+Verifier
+```
+
+其中任何角色都不必永久绑定 Kimi、Codex、Claude、GPT、Gemini 等具体产品。
 
 ## Phase 1
+
+第一阶段刻意保持简单：
 
 ```text
 用户任务
    ↓
 Kimi K3 Architect
-   ↓ 只读查看 repo/search/file/git/test record
+   ↓ 只读查看 repo / search / file / git / execution record
 结构化 PLAN
    ↓
 Codex Executor
@@ -31,6 +55,8 @@ APPROVED
 或
 CHANGES_REQUIRED → Codex 修复 → 再 Review
 ```
+
+Phase 1 暂时不引入 Jev，也不做多模型路由。
 
 配置 Kimi Code API：
 
@@ -43,7 +69,7 @@ export KIMI_MODEL="k3-256k"
 export KIMI_REASONING_EFFORT="high"
 ```
 
-国内 Kimi Code API 可将 Base URL 改为：
+国内 endpoint 可配置为：
 
 ```bash
 export KIMI_BASE_URL="https://api.kimi.com/coding/v1"
@@ -52,18 +78,40 @@ export KIMI_BASE_URL="https://api.kimi.com/coding/v1"
 生成 PLAN：
 
 ```bash
-c2c architect plan -w /path/to/project --goal "开发目标" --json
+amesh architect plan -w /path/to/project --goal "开发目标" --json
 ```
 
-Codex 完成开发并使用现有 `c2c record` 记录测试/执行结果后，进行 Review：
+Phase 1 迁移期间仍保留旧的 `c2c` 命令作为兼容别名。
+
+完成执行和测试后：
 
 ```bash
-c2c architect review -w /path/to/project --task <taskId> --json
+amesh record -w /path/to/project --task <taskId> --iteration 1 \
+  --changed-files "src/a.ts,src/b.ts" --tests "tests passed" --exit-status ok
+
+amesh architect review -w /path/to/project --task <taskId> --json
 ```
 
-Phase 1 暂时不引入 Jev，也不做多模型路由。完整路线见 [docs/SECONDARY_DEVELOPMENT_PLAN.md](docs/SECONDARY_DEVELOPMENT_PLAN.md)。
+## Roadmap
 
-项目仓库暂时仍保留 **codex-with-chatgpt** 这个名称，以便先验证架构。长期如果方向验证成功，更准确的名称会是 **codex-with-architect**。
+- **Phase 1**：Kimi K3 Architect/Reviewer + Codex Executor
+- **Phase 2**：增加一个更强的 fallback 模型，先人工/规则升级
+- **Phase 3**：引入 Jev Router/Judge，实现自动模型路由
+- **Phase 4**：根据质量、风险、延迟和成本数据优化路由
+- **后续**：支持多个 Executor，Codex 只是其中一种执行后端
+
+完整规划见 [docs/SECONDARY_DEVELOPMENT_PLAN.md](docs/SECONDARY_DEVELOPMENT_PLAN.md)。
+
+## 命名与兼容
+
+产品名和 package 名正式改为 **Agent Mesh / `agent-mesh`**。
+
+Phase 1 期间：
+
+- 推荐 CLI：`amesh`
+- 兼容 CLI：`c2c`
+- 暂时保留现有 state directory，避免破坏已有状态
+- GitHub fork 仓库名可以稍后统一修改
 
 ---
 
